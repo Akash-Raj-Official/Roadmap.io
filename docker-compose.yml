@@ -1,0 +1,11 @@
+# Self-hosted deployment target (EC2, Phase 2). Vercel remains primary production.
+# Builds the image directly from source on the host — no registry push yet
+# (see docs/AWS_DEPLOYMENT_PLAN.md "Phase 2.1" for that follow-up).
+services:
+  app:
+    build: .
+    ports:
+      - "80:3000"
+    env_file:
+      - .env.production
+    restart: unless-stopped

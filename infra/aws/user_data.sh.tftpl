@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euxo pipefail
+
+# --- Docker + Compose plugin ---
+apt-get update
+apt-get install -y ca-certificates curl gnupg git
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl enable --now docker
+
+# --- App source ---
+mkdir -p /opt/roadmap-ai
+git clone --branch "${repo_branch}" --depth 1 "${repo_url}" /opt/roadmap-ai
+
+cat > /opt/roadmap-ai/.env.production <<EOF
+AUTH_SECRET=${auth_secret}
+TURSO_DATABASE_URL=${turso_database_url}
+TURSO_AUTH_TOKEN=${turso_auth_token}
+EOF
+chmod 600 /opt/roadmap-ai/.env.production
+
+# --- Build and run ---
+cd /opt/roadmap-ai
+docker compose up -d --build

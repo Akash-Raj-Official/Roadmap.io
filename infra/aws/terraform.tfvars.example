@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values,
+# or export as TF_VAR_auth_secret / TF_VAR_turso_database_url / TF_VAR_turso_auth_token instead.
+
+auth_secret         = ""
+turso_database_url  = ""
+turso_auth_token    = ""
+
+# Optional: restrict SSH to your own IP once you know it.
+# ssh_ingress_cidr = "203.0.113.4/32"

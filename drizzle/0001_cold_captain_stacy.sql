@@ -1,0 +1,1 @@
+ALTER TABLE `topics` ADD `career_level` text DEFAULT 'fresher' NOT NULL;
