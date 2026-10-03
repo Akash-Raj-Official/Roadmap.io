@@ -47,6 +47,11 @@ next-env.d.ts
 # database
 *.db
 *.db-journal
+auth
+auth-*
+auth.wal
+auth-wal
+auth-shm
 
 # testing
 /test-results/
