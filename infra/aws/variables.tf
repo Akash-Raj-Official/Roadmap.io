@@ -1,13 +1,13 @@
 variable "aws_region" {
   description = "AWS region to deploy into"
   type        = string
-  default     = "us-west-2"
+  default     = "us-east-1"
 }
 
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t2.medium"
+  default     = "t2.micro"
 }
 
 variable "repo_url" {
