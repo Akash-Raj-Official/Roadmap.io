@@ -8,6 +8,7 @@ const tursoUrl = process.env.TURSO_DATABASE_URL;
 function createSqliteDb() {
   // Lazy-require so the native better-sqlite3 binding is only loaded when the
   // local better-sqlite3 driver is actually used (never on the libSQL path).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- preserve lazy loading for Turso deployments
   const Database = require("better-sqlite3");
   return drizzleSqlite(new Database(process.env.SQLITE_PATH ?? "sqlite.db"), {
     schema,
