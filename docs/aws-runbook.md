@@ -53,7 +53,7 @@ cd infra/aws
 terraform destroy
 ```
 
-This is a `t2.medium` (not free-tier) — destroy it when you're done experimenting to stop billing. There's no Elastic IP to separately release; the instance's public IP is deallocated automatically when the instance terminates, and it **will change** on the next `apply`.
+The Terraform default is `t2.micro` with 2 GB of disk-backed swap configured for the on-instance Docker build. Confirm the actual instance type in AWS before estimating costs. Destroy the instance when you are done experimenting. There is no Elastic IP to separately release; the public IP is deallocated when the instance terminates and will change on the next `apply`.
 
 ## Known limitations (by design, for this phase)
 

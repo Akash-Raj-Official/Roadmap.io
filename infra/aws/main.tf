@@ -89,6 +89,7 @@ resource "aws_instance" "app" {
   vpc_security_group_ids      = [aws_security_group.app.id]
   key_name                    = aws_key_pair.this.key_name
   associate_public_ip_address = true
+  user_data_replace_on_change = true
 
   root_block_device {
     volume_size = 20
