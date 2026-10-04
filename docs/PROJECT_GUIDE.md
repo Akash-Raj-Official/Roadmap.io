@@ -6,6 +6,8 @@ This document describes the product, application flows, data model, security bou
 
 Roadmap.io is a learning-roadmap platform. Administrators create learning tracks and organize their content into milestones, topics, and subtopics. Visitors can browse roadmaps without an account. Learners create accounts, mark topics complete, and see progress and career-readiness estimates. The admin area manages the roadmap content.
 
+The project was developed with help from AI coding agents. It has been deployed through Vercel and also through a Docker/Terraform-based AWS EC2 deployment. Vercel is the primary hosting path; the AWS deployment was built and verified as a self-hosting path, but its current runtime status must be checked in AWS.
+
 The application is a server-rendered Next.js App Router project. Server Components load database-backed pages; Server Actions perform mutations; Auth.js provides credential-based authentication; Drizzle defines and queries the database. The same schema is used with local SQLite and production Turso/libSQL.
 
 | Area | Implementation |
@@ -76,6 +78,139 @@ flowchart TD
     Content --> Home
     Content --> Track
 ```
+
+## Architecture Diagrams
+
+### Runtime components and database selection
+
+```mermaid
+flowchart LR
+    Browser[Browser] --> Proxy[proxy.ts route guard]
+    Proxy --> App[Next.js App Router]
+    App --> Pages[Server Components and pages]
+    App --> Actions[Server Actions]
+    Pages --> Data[lib/data.ts and Drizzle]
+    Actions --> Authz[Session, role, and ownership checks]
+    Authz --> Data
+    App --> Auth[Auth.js credentials and JWT session]
+    Auth --> Users[(users table)]
+    Data --> Driver{TURSO_DATABASE_URL set?}
+    Driver -->|Yes| Turso[(Turso / libSQL)]
+    Driver -->|No| SQLite[(Local SQLite)]
+    Pages --> RoadmapUI[RoadmapTree client UI]
+```
+
+`proxy.ts` guards admin and dashboard routes. Server Actions still enforce authorization independently; route guards are not a replacement for server-side checks.
+
+### Entity relationships
+
+```mermaid
+erDiagram
+    USERS ||--o{ SUBJECTS : creates
+    SUBJECTS ||--o{ TOPICS : contains
+    TOPICS ||--o{ TOPICS : parent_child
+    TOPICS ||--o{ RESOURCES : provides
+    USERS ||--o{ PROGRESS : earns
+    TOPICS ||--o{ PROGRESS : records
+
+    USERS {
+        text id PK
+        text name
+        text email UK
+        text password_hash
+        text role
+    }
+    SUBJECTS {
+        text id PK
+        text slug UK
+        text title
+        text created_by FK
+    }
+    TOPICS {
+        text id PK
+        text subject_id FK
+        text parent_topic_id FK
+        text level
+        text career_level
+    }
+    RESOURCES {
+        text id PK
+        text topic_id FK
+        text url
+        text type
+    }
+    PROGRESS {
+        text id PK
+        text user_id FK
+        text topic_id FK
+        integer completed_at
+    }
+```
+
+The `progress` table has a unique user/topic constraint, so each learner has at most one completion record per topic.
+
+### Progress update and authorization sequence
+
+```mermaid
+sequenceDiagram
+    actor Learner
+    participant UI as Track page / RoadmapTree
+    participant Action as toggleTopicProgress Server Action
+    participant Auth as Auth.js session
+    participant DB as Drizzle database
+
+    Learner->>UI: Mark topic complete or incomplete
+    UI->>Action: topicId, completed, trackSlug
+    Action->>Auth: Read current session
+    Auth-->>Action: user id and role
+    Action->>Action: Require learner role
+    Action->>DB: Resolve track and verify topic belongs to it
+    Action->>Action: Use session user id as progress owner
+    alt completed
+        Action->>DB: Insert progress (ignore duplicate)
+    else incomplete
+        Action->>DB: Delete this user's progress for topic
+    end
+    Action->>UI: Revalidate track and dashboard
+```
+
+### Continuous integration and Vercel deployment
+
+```mermaid
+flowchart LR
+    Dev[Developer feature branch] --> PR[Pull request]
+    PR --> Checks[GitHub Actions]
+    Checks --> Lint[ESLint and TypeScript]
+    Checks --> Tests[Vitest and production build]
+    Checks --> Review[Required code review]
+    Lint --> Merge{Checks pass and review approved?}
+    Tests --> Merge
+    Review --> Merge
+    Merge --> Main[Merge to main]
+    Main --> Vercel[Vercel Git deployment]
+    Vercel --> Runtime[Next.js production runtime]
+    Runtime --> Turso[(Turso database)]
+```
+
+### Optional AWS deployment
+
+```mermaid
+flowchart LR
+    Operator[Operator] --> Vars[Local Terraform inputs]
+    Vars --> Plan[terraform plan and review]
+    Plan --> Apply[terraform apply]
+    Apply --> EC2[Ubuntu EC2 instance]
+    EC2 --> Bootstrap[Cloud-init installs Docker and Compose]
+    Bootstrap --> Clone[Clone configured repository branch]
+    Clone --> Compose[docker compose build and start]
+    Compose --> App[Next.js standalone container]
+    Browser[Browser over HTTP] -->|Port 80| Compose
+    App -->|Outbound libSQL connection| Turso[(Turso database)]
+    Apply --> State[Local Terraform state and generated key]
+    State -. Must remain private and untracked .-> Operator
+```
+
+Before using the AWS path, confirm the account's actual resources, restrict SSH ingress to a trusted IP, and verify that current Terraform variables and AWS status match the plan. Destroy test infrastructure when it is no longer needed.
 
 ## Routes and Responsibilities
 
@@ -228,3 +363,13 @@ The workflow is `terraform init` -> configure secret variables locally -> `terra
 The repository workflow is feature branch -> focused change -> local validation -> pull request -> CI/review -> merge. Do not push directly to `main`. Keep commits scoped and inspect `git status` and the staged diff before committing. In particular, verify that `.env*`, private keys, Terraform state/plans, and local database files are absent from the staged file list.
 
 This guide is based on the checked-in application code and project documents. Deployment status, provider dashboard settings, and any secret values must be verified in their respective systems rather than inferred from this document.
+
+## Brief for an AI Documentation Agent
+
+Use this prompt when asking an AI coding agent to audit or maintain the project documentation:
+
+> Read `AGENTS.md` and `CLAUDE.md` first. Audit the actual repository source, tests, workflows, and deployment files before writing documentation. Treat source code as authoritative; do not infer behavior from old plans when it conflicts with the implementation. Maintain `docs/PROJECT_GUIDE.md` as the main handoff document and verify routes, roles, data fields, validation, authorization, readiness math, environment variable names, and deployment steps against their owning files.
+>
+> Include Mermaid diagrams for: (1) visitor/learner/admin product journeys, (2) runtime architecture and SQLite-versus-Turso selection, (3) database ER relationships, (4) progress mutation with authorization checks, (5) pull-request CI through Vercel production deployment, and (6) the optional Terraform-to-EC2/Docker/Turso path. Keep each diagram focused and label optional or externally managed systems clearly.
+>
+> Do not invent current cloud status, URLs, costs, account/resource IDs, or settings. Mark anything requiring AWS, Vercel, or GitHub dashboard verification as unverified. Never include passwords, tokens, private keys, Terraform state, IP addresses, or secret values. Do not run the seed script or print environment files. Make documentation-only changes unless explicitly asked otherwise, preserve unrelated work, validate Markdown/Mermaid syntax and links, and report assumptions and checks performed.
