@@ -1,5 +1,7 @@
 # Roadmap.io
 
+**Live demo:** https://roadmap-io.vercel.app
+
 A learning-roadmap website: admins build tracks (Subjects → Milestones → Topics/Subtopics) like DevOps or Cloud Engineering, and learners create an account, follow the trail, and check off milestones as they complete them.
 
 Built with Next.js App Router, TypeScript, Tailwind v4 + shadcn/ui, Drizzle ORM (SQLite locally, Turso in production), and Auth.js.
@@ -41,9 +43,9 @@ Seed admin login defaults to `admin@roadmap.io` / `ChangeMe123!` (override via `
 
 ## Deployment
 
-- **Live**: https://roadmap-ai-neon.vercel.app (primary, production)
+- **Live**: https://roadmap-io.vercel.app (primary, production; also served at https://roadmap-ai-neon.vercel.app)
 - **Database**: Turso (libSQL), project `roadmap-ai` — migrated and seeded with the sample tracks + an admin account.
-- **Repo**: https://github.com/YOUR_GITHUB_USERNAME/roadmap.io
+- **Repo**: https://github.com/Akash-Raj-Official/Roadmap.io
 - **CI**: GitHub Actions runs on every PR/push to `main`:
   - `.github/workflows/lint.yml` — ESLint + `tsc --noEmit`
   - `.github/workflows/ci.yml` — Vitest unit tests + production build
